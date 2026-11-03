@@ -1,0 +1,5 @@
+# ChatGPT project references and local instructions stay local.
+sources/
+AGENTS.md
+.DS_Store
+Thumbs.db

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07101d" />
+  <meta name="description" content="Offline interactive gravity assist simulation with live velocity vectors." />
+  <title>Gravity Assist Lab — PH217</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell" id="simulator">
+    <header class="topbar">
+      <a class="brand" href="#simulator" aria-label="Gravity Assist Simulation">
+        <span class="brand-mark" aria-hidden="true"><i></i></span>
+        <span>PH217 <b>/</b> GRAVITY ASSIST</span>
+      </a>
+      <div class="top-status"><i class="live-dot" id="status-dot"></i><span id="status-text">READY FOR INSERTION</span></div>
+      <div class="frame-switch" role="group" aria-label="Reference frame">
+        <button class="frame-btn active" data-frame="planet" aria-pressed="true">Planet frame</button>
+        <button class="frame-btn" data-frame="star" aria-pressed="false">Star frame</button>
+      </div>
+      <label class="center-control"><span>VIEW CENTER</span><select id="center-select" aria-label="Center camera on"><option value="planet">Planet</option><option value="spacecraft">Spacecraft</option><option value="sun" disabled>Sun</option><option value="free">Free pan</option></select></label>
+      <button class="icon-button" id="fullscreen-btn" aria-label="Toggle fullscreen" title="Fullscreen">⛶</button>
+    </header>
+
+    <main class="workspace">
+      <section class="scene-card" aria-label="Gravity assist simulation">
+        <div class="canvas-wrap" id="canvas-wrap">
+          <div id="simulation-canvas"></div>
+          <div class="scene-chip"><span id="frame-chip">PLANET-CENTRED VIEW</span><i>/</i><span id="phase-chip">APPROACH</span></div>
+          <div class="scene-scale"><span></span><b id="scale-label">20,000 km</b></div>
+          <div class="scene-hint"><span>↻</span> DRAG TO ORBIT <i></i> RIGHT-DRAG TO PAN <i></i> SCROLL TO ZOOM</div>
+          <div class="scene-legend"><span><i class="legend-dot planet-color"></i> Planet</span><span><i class="legend-dot ship-color"></i> Spacecraft</span><span><i class="legend-dot path-color"></i> Trajectory</span></div>
+          <div class="velocity-diagram" id="velocity-diagram" aria-label="Relative velocity added to planet velocity equals spacecraft heliocentric velocity">
+            <div class="diagram-head"><span>VELOCITY ADDITION</span><span>LIVE · PHYSICAL SUM</span></div>
+            <svg class="diagram-svg" viewBox="0 0 250 110" role="img" aria-label="Head-to-tail vector addition diagram">
+              <defs>
+                <marker id="diagram-arrow-planet" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#b33a1c" /></marker>
+                <marker id="diagram-arrow-relative" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#bc8966" /></marker>
+                <marker id="diagram-arrow-result" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="#070605" /></marker>
+              </defs>
+              <line class="diagram-axis" x1="12" y1="73" x2="235" y2="73" />
+              <line id="diagram-result" class="diagram-result" x1="18" y1="73" x2="0" y2="0" marker-end="url(#diagram-arrow-result)" />
+              <line id="diagram-planet" class="diagram-planet" x1="18" y1="73" x2="0" y2="73" marker-end="url(#diagram-arrow-planet)" />
+              <line id="diagram-relative" class="diagram-relative" x1="0" y1="73" x2="0" y2="0" marker-end="url(#diagram-arrow-relative)" />
+              <circle id="diagram-origin" cx="18" cy="73" r="2.5" />
+            </svg>
+            <div class="diagram-values"><span><i class="planet-key"></i>v<sub>planet</sub> <b id="diagram-planet-value">29.78</b></span><span><i class="relative-key"></i>v<sub>sc,planet</sub> <b id="diagram-relative-value">—</b></span><span><i class="result-key"></i>v<sub>sc,star</sub> <b id="diagram-result-value">—</b></span></div>
+          </div>
+          <div class="frame-note" id="frame-note">Planet frame: far-field relative speed is conserved through the flyby.</div>
+          <div class="loading-state" id="loading-state"><span class="loader"></span> Preparing offline 3D scene…</div>
+          <div class="error-state" id="error-state" hidden>3D graphics could not start. Enable WebGL or hardware acceleration, then reload.</div>
+        </div>
+
+        <div class="transport">
+          <div class="transport-buttons">
+            <button class="play-button" id="play-toggle" aria-label="Start simulation"><span class="play-symbol" aria-hidden="true">▶</span><b>Start</b></button>
+            <button class="transport-button" id="reset-btn" aria-label="Reset simulation" title="Reset">↺</button>
+            <button class="transport-button camera-reset" id="camera-reset" title="Reset camera">◎ <span>Camera</span></button>
+          </div>
+          <label class="speed-control"><span>TIME SCALE</span><input id="speed-slider" type="range" min="0.25" max="4" value="1" step="0.25" aria-label="Simulation speed" /><b id="speed-value">1×</b></label>
+        </div>
+
+        <div class="options-row">
+          <label class="toggle"><input type="checkbox" id="toggle-vectors" checked /><span class="toggle-ui"></span><span>Velocity vectors</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-trail" checked /><span class="toggle-ui"></span><span>Spacecraft trail</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-orbit" checked /><span class="toggle-ui"></span><span>Planet orbit</span></label>
+          <label class="toggle"><input type="checkbox" id="toggle-grid" /><span class="toggle-ui"></span><span>Reference grid</span></label>
+        </div>
+      </section>
+
+      <aside class="telemetry-card" aria-label="Live simulation telemetry">
+        <div class="telemetry-head"><span>FLIGHT TELEMETRY</span><span class="telemetry-live"><i></i> LIVE</span></div>
+        <div class="telemetry-main"><span>SPACECRAFT SPEED · STAR FRAME</span><strong id="telemetry-speed">—<small> km/s</small></strong><div class="speed-delta"><span id="speed-change">Awaiting flyby</span><span>↗</span></div></div>
+        <div class="telemetry-grid">
+          <div><span>ALTITUDE</span><b id="telemetry-altitude">— <small>km</small></b></div>
+          <div><span>RANGE TO PLANET</span><b id="telemetry-range">— <small>km</small></b></div>
+          <div><span>RELATIVE SPEED</span><b id="telemetry-relative">— <small>km/s</small></b></div>
+          <div><span>ELAPSED TIME</span><b id="telemetry-time">00:00 <small>h:m</small></b></div>
+        </div>
+        <div class="event-title">FLYBY SEQUENCE</div>
+        <div class="sequence">
+          <div class="sequence-item active"><i></i><span><b>Approach</b><small>Entering the encounter</small></span><time>01</time></div>
+          <div class="sequence-item"><i></i><span><b>Closest approach</b><small>Maximum gravitational deflection</small></span><time>02</time></div>
+          <div class="sequence-item"><i></i><span><b>Departure</b><small>Leaving with a new trajectory</small></span><time>03</time></div>
+        </div>
+        <div class="mission-progress"><div><span>ENCOUNTER PROGRESS</span><b id="progress-label">0%</b></div><div class="progress-track"><i id="progress-bar"></i></div></div>
+        <div class="model-note">Newtonian two-body flyby<br />μ = 398,600 km³/s² · v∞ = 8 km/s</div>
+      </aside>
+    </main>
+
+    <footer class="footer"><div class="footer-meta"><span>v<sub>sc,star</sub> = v<sub>planet,star</sub> + v<sub>sc,planet</sub></span><span>OFFLINE FLIGHT MODEL · 29.78 KM/S PLANET ORBITAL VELOCITY</span></div><span class="footer-title" aria-hidden="true">GRAVITY ASSIST</span></footer>
+  </div>
+
+  <script>
+    const showSceneLoadError = () => {
+      const loading = document.getElementById('loading-state');
+      if (!loading?.isConnected) return;
+      loading.hidden = true;
+      const error = document.getElementById('error-state');
+      if (error) error.hidden = false;
+    };
+    window.addEventListener('error', showSceneLoadError, true);
+    window.addEventListener('unhandledrejection', showSceneLoadError);
+  </script>
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
